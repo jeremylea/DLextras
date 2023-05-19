@@ -1,6 +1,7 @@
 classdef onehotLayer < nnet.layer.Layer
     properties
         NumActions
+        NumEncoded
     end
     methods
         function this = onehotLayer(numActions,varargin)
@@ -18,21 +19,30 @@ classdef onehotLayer < nnet.layer.Layer
             this.NumInputs = 1;
             this.NumOutputs = 1;
             this.NumActions = numActions;
+            i = 0;
+            for j = 1:length(this.NumActions)
+                if this.NumActions(j) == 1
+                    i = i+1;
+                else
+                    i = i+this.NumActions(j);
+                end
+            end
+            this.NumEncoded = i;
         end
         
-        function Z = predict(layer, X)
-            % Z = predict(layer, X) forwards the input data X through the
-            % layer and outputs the result Z.
-            
-            Z = gather(X);
-            Z = onehotencode(Z,1,'ClassNames',1:layer.NumActions);
+        function Z = predict(this, X)
+            i = 0;
+            Z = zeros(this.NumEncoded,size(X,2));
+            for j = 1:length(this.NumActions)
+                if this.NumActions(j) == 1
+                    Z(i+1,:) = X(j,:);
+                    i = i+1;
+                else
+                    Z(i+1:this.NumActions(j),:) = onehotencode(X(j,:),1,'ClassNames',1:this.NumActions(j));
+                    i = i+this.NumActions(j);
+                end
+            end
             Z = cast(Z,'like',X);
-        end
-        
-        function dLdX = backward(~,~,~,dLdZ,~)
-            % Backward propagate the derivative of the loss function through 
-            % the layer
-            dLdX = cast(zeros(1,size(dLdZ,2)),'like',dLdZ);
         end
     end
 end
