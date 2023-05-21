@@ -230,27 +230,46 @@ classdef Flow
                 MiniBatchSize=batch_size,...
                 MiniBatchFcn=@(X) preprocessData(this,X),...
                 MiniBatchFormat=["BC" "BC"]);
-            losses = neg_log_prob(this,inputs);
-            if ~isempty(validation)
-                val_losses = neg_log_prob(this,validation);
-            else
-                val_losses = [];
-            end
+            losses = [];
+            val_losses = [];
             iteration = 0;
             trailingAvg = [];
             trailingAvgSq = [];
-            for epoch = 1:epochs
-                shuffle(mbq);
-                while hasdata(mbq)
-                    iteration = iteration+1;
-                    [Xbat,Cbat] = next(mbq);
-                    [~,gradients] = dlfeval(@loss_fun,this.bijector,this.latent,Xbat,Cbat);
-                    [this.bijector,trailingAvg,trailingAvgSq] = adamupdate(this.bijector,gradients,...
-                        trailingAvg,trailingAvgSq,iteration);
+            presampled = [];
+            initialLearnRate = 0.1;
+            decay = 0.2;
+            for epoch = 0:epochs
+                if epoch > 0
+                    learnRate = initialLearnRate*decay.^log10(epoch);
+                    shuffle(mbq);
+                    while hasdata(mbq)
+                        iteration = iteration+1;
+                        [Xbat,Cbat] = next(mbq);
+                        [~,gradients] = dlfeval(@loss_fun,this.bijector,this.latent,Xbat,Cbat);
+                        [this.bijector,trailingAvg,trailingAvgSq] = adamupdate(this.bijector,gradients,...
+                            trailingAvg,trailingAvgSq,iteration,learnRate);
+                    end
                 end
+                if ~isempty(this.conditional_columns)
+                    test = array2table(unique(inputs{:,"label"}),"VariableNames",{"label"});
+                    [samples,presampled] = this.sample(1000,test,[],presampled);
+                    [~,log_probs] = neg_log_prob(this,samples);
+                    scatter(samples{:,1},samples{:,2},[],-extractdata(log_probs)',"filled");
+                else
+                    [samples,presampled] = this.sample(1000,[],[],presampled);
+                    if width(samples) == 1
+                        histogram(samples{:,1},20,"Normalization","pdf");
+                    else
+                        scatter(samples{:,1},samples{:,2},[],"red","filled");
+                    end
+                end
+                drawnow;
                 losses(end+1) = neg_log_prob(this,inputs); %#ok<AGROW>
                 if ~isempty(validation)
                     val_losses(end+1) = neg_log_prob(this,validation); %#ok<AGROW>
+                    fprintf("Epoch: %i, Loss: %f\n, Validation Loss: %f",epoch,losses(end),val_losses(end));
+                else
+                    fprintf("Epoch: %i, Loss: %f\n",epoch,losses(end));
                 end
                 if ~isfinite(losses(end))
                     disp(["Training stopping after epoch ",num2str(epoch)," because training loss diverged."]);
