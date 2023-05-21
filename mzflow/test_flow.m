@@ -1,10 +1,10 @@
-rng('default') % For reproducibility
+rng("default") % For reproducibility
 [X,label] = twomoons(200);
-data = array2table([X label],'VariableNames',{'x','y','label'});
-test = array2table(unique(label),'VariableNames',{'label'});
+data = array2table([X label],"VariableNames",{"x","y","label"});
+test = array2table(unique(label),"VariableNames",{"label"});
 
-%scatter(X(:,1),X(:,2),[],label,'filled')
-%title('Labeled Data')
+%scatter(X(:,1),X(:,2),[],label,"filled")
+%title("Labeled Data")
 flow = Flow(["x", "y"],"label");
 flow = flow.set_default_bijector(data);
 flow.sample(1,test);

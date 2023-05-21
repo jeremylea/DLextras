@@ -58,8 +58,8 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             end
             upper = inputs(1:this.upper_dim,:);
             lower = inputs(this.upper_dim+1:end,:);
-            [lower, log_det] = spline_params(this,upper,lower,conditions,false);
-            outputs = cast([upper; lower],'like',inputs);
+            [lower,log_det] = spline_params(this,upper,lower,conditions,false);
+            outputs = cast([upper; lower],"like",inputs);
         end
         function outputs = inverse(this, inputs, conditions)
             upper = inputs(1:this.upper_dim,:);
@@ -68,7 +68,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             outputs = [upper; lower];
         end
         function [inf] = info(this)
-            inf = { 'NeuralSplineCoupling', this.n_conditions, this.K, this.hidden_layers, this.hidden_dim, this.transformed_dim, this.periodic};
+            inf = {"NeuralSplineCoupling" this.n_conditions this.K this.hidden_layers this.hidden_dim this.transformed_dim this.periodic};
         end
     end
     methods (Access = private)
@@ -126,33 +126,33 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             hk = H(idx);
             sk = wk ./ hk;
             if inverse
-                a = hk .* (sk - dk) + (masked - yk) .* (dkp1 + dk - 2 * sk);
-                b = hk .* dk - (masked - yk) .* (dkp1 + dk - 2 * sk);
-                c = -sk .* (masked - yk);
-                relx = 2 * c ./ (-b - sqrt(b.^2 - 4 * a .* c));
-                outputs = relx .* wk + xk;
+                a = hk.*(sk-dk) + (masked-yk).*(dkp1+dk-2*sk);
+                b = hk.*dk - (masked-yk).*(dkp1+dk-2*sk);
+                c = -sk.*(masked-yk);
+                relx = 2*c./(-b-sqrt(b.^2-4*a.*c));
+                outputs = min(max(0,relx.* wk + xk),1);
                 if ~this.periodic
                     outputs(out_of_bounds) = lower(out_of_bounds);
                 end
                 log_det = [];
             else
-                relx = min(max(0,(masked - xk) ./ wk),1);
-                num = hk .* (sk .* relx.^2 + dk .* relx .* (1 - relx));
-                den = sk + (dkp1 + dk - 2 .* sk) .* relx .* (1 - relx);
-                outputs = yk + num ./ den;
+                relx = min(max(0,(masked-xk)./wk),1);
+                num = hk.*(sk.*relx.^2 + dk.*relx.*(1-relx));
+                den = sk + (dkp1+dk-2*sk).*relx.*(1-relx);
+                outputs = min(max(0,yk + num./den),1);
                 if ~this.periodic
                     outputs(out_of_bounds) = lower(out_of_bounds);
                 end
-                dnum = dkp1 .* relx.^2 + 2 .* sk .* relx .* (1 - relx) + dk .* (1 - relx).^2;
-                dden = sk + (dkp1 + dk - 2 .* sk) .* relx .* (1 - relx);
-                log_det = 2 * log(sk) + log(dnum) - 2*log(dden);
+                dnum = dkp1.*relx.^2 + 2*sk.*relx.*(1-relx) + dk.*(1-relx).^2;
+                dden = sk + (dkp1+dk-2*sk).*relx.*(1-relx);
+                log_det = 2*log(sk) + log(max(0,dnum)) - 2*log(max(0,dden));
                 if ~this.periodic
                     log_det(out_of_bounds) = 0;
                 end
             end
             outputs = dlarray(outputs,"CB");
             log_det = dlarray(log_det,"CB");
-            outputs = cast(outputs,'like',lower);
+            outputs = cast(outputs,"like",lower);
         end
     end
 end

@@ -21,10 +21,10 @@ classdef Roll < bijectors.Bijector
             log_det = dlarray(zeros(1,size(inputs,finddim(inputs,"B"))),"CB");
         end
         function outputs = inverse(this, inputs, ~)
-            outputs = circshift(inputs, -this.shift, finddim(inputs,"C"));
+            outputs = circshift(inputs,-this.shift,finddim(inputs,"C"));
         end
         function [inf] = info(this)
-            inf = { "Roll", this.shift };
+            inf = {"Roll" this.shift};
         end
     end
 end

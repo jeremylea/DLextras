@@ -7,7 +7,7 @@ classdef Uniform < distributions.LatentDist
     methods
         function this = Uniform(input_dim)
             this.input_dim = input_dim;
-            this.info = {"Uniform", input_dim };
+            this.info = {"Uniform" input_dim};
         end
 
         function log_prob = log_prob(this, inputs)

@@ -12,7 +12,7 @@ classdef Flow
     methods
         function this = Flow(data_columns, conditional_columns, bijector, latent, autoscale_conditions)
             if isempty(data_columns)
-                error('You must provide data_columns.')
+                error("You must provide data_columns.")
             end
             this.data_columns = data_columns;
             this.input_dim = length(this.data_columns);
@@ -27,7 +27,7 @@ classdef Flow
                 this.latent = latent;
             end
             if this.latent.input_dim ~= length(data_columns)
-                error('The latent distribution has %d dimensions, but data_columns has %d dimensions. They must match!', this.latent.input_dim, length(data_columns));
+                error("The latent distribution has %d dimensions, but data_columns has %d dimensions. They must match!",this.latent.input_dim,length(data_columns));
             end
             if nargin >= 3 && ~isempty(bijector)
                 set_bijector(this,bijector);
@@ -38,8 +38,8 @@ classdef Flow
                 this.condition_stds = [];
             else
                 this.conditional_columns = conditional_columns;
-                this.condition_means = zeros(1, length(this.conditional_columns));
-                this.condition_stds = ones(1, length(this.conditional_columns));
+                this.condition_means = zeros(1,length(this.conditional_columns));
+                this.condition_stds = ones(1,length(this.conditional_columns));
             end
         end
 
@@ -48,9 +48,9 @@ classdef Flow
         end
 
         function this = set_default_bijector(this, inputs)
-            data = inputs{:, this.data_columns};
-            mins = floor(min(data, [], 1));
-            maxs = ceil(max(data, [], 1));
+            data = inputs{:,this.data_columns};
+            mins = floor(min(data,[],1));
+            maxs = ceil(max(data,[],1));
             condition_dim = numel(this.conditional_columns) > 0;
             layers = layerGraph(featureInputLayer(this.input_dim,name='inputs'));
             if condition_dim
@@ -59,7 +59,7 @@ classdef Flow
                 ]);
             end
             layers = addLayers(layers,[
-                bijectors.ShiftBounds(mins, maxs, name='shift')
+                bijectors.ShiftBounds(mins,maxs,name='shift')
             ]);
             layers = connectLayers(layers,'inputs','shift');
             for i = 1:this.input_dim
@@ -102,24 +102,24 @@ classdef Flow
 
         function check_bijector(this)
             if isempty(this.bijector)
-                error('The bijector has not been set up yet! You can do this by calling flow.set_bijector(bijector), or by calling train, in which case the default bijector will be used.');
+                error("The bijector has not been set up yet! You can do this by calling flow.set_bijector(bijector), or by calling train, in which case the default bijector will be used.");
             end
         end
 
         function conditions = get_conditions(this, inputs)
             if isempty(this.conditional_columns)
-                conditions = zeros(size(inputs, 1),0);
+                conditions = zeros(size(inputs,1),0);
             else
-                conditions = inputs{:, this.conditional_columns};
+                conditions = inputs{:,this.conditional_columns};
                 conditions = (conditions - this.condition_means) ./ this.condition_stds;
             end
         end
 
         function log_probs = neg_log_prob(this, inputs)
             check_bijector(this);
-            X = dlarray(inputs{:, this.data_columns},"BC");
+            X = dlarray(inputs{:,this.data_columns},"BC");
             conditions = dlarray(get_conditions(this,inputs),"BC");
-            [~, log_probs] = log_probs_internal(this.bijector,this.latent,X,conditions);
+            [~,log_probs] = log_probs_internal(this.bijector,this.latent,X,conditions);
             log_probs = -mean(log_probs,"all");
         end
 
@@ -131,7 +131,7 @@ classdef Flow
             if nargin < 7 || isempty(batch_size)
                 batch_size = size(inputs, 1);
             end
-            inputs = reset_index(inputs, 'drop');
+            inputs = reset_index(inputs, "drop");
             pdfs = zeros(nrows, numel(grid));
             if ~isempty(marg_rules)
                 if isnan(marg_rules.flag)
@@ -147,7 +147,7 @@ classdef Flow
                 % Iterate over marginalization rules
                 for name = fieldnames(marg_rules)'
                     rule = marg_rules.(name);
-                    if strcmp(name,'flag')
+                    if strcmp(name,"flag")
                         continue;
                     end
                     % Identify flagged rows and apply marginalization
@@ -156,7 +156,7 @@ classdef Flow
                     if isempty(flagged_idx)
                         continue;
                     end
-                    marg_grids = arrayfun(rule, inputs(flagged_idx, :), 'UniformOutput', false);
+                    marg_grids = arrayfun(rule, inputs(flagged_idx, :), "UniformOutput", false);
                     marg_grids = cat(2, marg_grids{:});
                     marg_inputs = repmat(inputs(flagged_idx, :), size(marg_grids, 2), 1);
                     marg_inputs.(name) = marg_grids(:);
@@ -193,13 +193,13 @@ classdef Flow
                 save_conditions = true;
             end
             if ~isempty(this.conditional_columns) && isempty(conditions)
-                error("Must provide the following conditions\n%s", this.conditional_columns);
+                error("Must provide the following conditions\n%s",this.conditional_columns);
             end
             if isempty(this.conditional_columns)
-                conditions = zeros(nsamples, 0);
+                conditions = zeros(nsamples,0);
             else
                 conditions = get_conditions(this,conditions);
-                conditions = repelem(conditions, nsamples, 1);
+                conditions = repelem(conditions,nsamples,1);
             end
             x = this.latent.sample(size(conditions,1));
             x = dlarray(x,"BC");
@@ -209,15 +209,15 @@ classdef Flow
                 if ~isa(l,"bijectors.Bijector")
                     continue;
                 end
-                x = this.bijector.Layers(i).inverse(x, conditions);
+                x = this.bijector.Layers(i).inverse(x,conditions);
             end
             x = extractdata(x)';
             conditions = extractdata(conditions)';
             if isempty(this.conditional_columns) || ~save_conditions
-                x = array2table(x, 'VariableNames', this.data_columns);
+                x = array2table(x,"VariableNames",this.data_columns);
             else
                 conditions = conditions .* this.condition_stds + this.condition_means;
-                x = array2table([x conditions], 'VariableNames', [this.data_columns this.conditional_columns]);
+                x = array2table([x conditions],"VariableNames",[this.data_columns this.conditional_columns]);
             end
         end
 
@@ -231,7 +231,7 @@ classdef Flow
             if ~isempty(this.conditional_columns) && this.autoscale_conditions
                 C = get_conditions(this,inputs);
                 this.condition_means = mean(C);
-                this.condition_stds = arrayfun(@(x) x ~= 0, std(C));
+                this.condition_stds = arrayfun(@(x) x ~= 0,std(C));
             end
             ds = arrayDatastore(inputs(:,[this.data_columns this.conditional_columns]),IterationDimension=1);
             mbq = minibatchqueue(ds,2,...
@@ -261,7 +261,7 @@ classdef Flow
                     val_losses(end+1) = neg_log_prob(this,validation); %#ok<AGROW>
                 end
                 if ~isfinite(losses(end))
-                    disp(['Training stopping after epoch ', num2str(epoch+1), ' because training loss diverged.']);
+                    disp(["Training stopping after epoch ",num2str(epoch)," because training loss diverged."]);
                     break;
                 end
             end
@@ -270,14 +270,14 @@ classdef Flow
     methods (Access = private)
         function [X,C] = preprocessData(this, batch)
             batch = cat(1,batch{:});
-            X = batch{:, this.data_columns};
+            X = batch{:,this.data_columns};
             C = get_conditions(this,batch);
         end
     end
 end
 
 function [loss,gradients] = loss_fun(bijector, latent, x, c)
-    [bijector, log_probs] = log_probs_internal(bijector,latent,x,c);
+    [bijector,log_probs] = log_probs_internal(bijector,latent,x,c);
     loss = -mean(log_probs,"all");
     gradients = dlgradient(loss,bijector.Learnables);
 end

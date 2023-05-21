@@ -25,7 +25,7 @@ classdef ShiftBounds < bijectors.Bijector
         end
         function [outputs, log_det] = predict(this, inputs)
             outputs = (inputs - this.min_val) ./ this.range;
-            log_det = log(prod(1 ./ this.range))...
+            log_det = log(prod(1./this.range))...
                 .*ones(1,size(inputs,finddim(inputs,"B")));
             log_det = dlarray(log_det,"CB");
         end
@@ -33,7 +33,7 @@ classdef ShiftBounds < bijectors.Bijector
             outputs = inputs .* this.range + this.min_val;
         end
         function [inf] = info(this)
-            inf = { "ShiftBounds" this.min_val  this.max_val };
+            inf = {"ShiftBounds" this.min_val  this.max_val};
         end
     end
 end
