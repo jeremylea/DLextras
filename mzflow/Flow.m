@@ -174,8 +174,11 @@ classdef Flow
             pdfs(isnan(pdfs)) = 0;
         end
 
-        function x = sample(this, nsamples, conditions, save_conditions)
+        function [x, u] = sample(this, nsamples, conditions, save_conditions, u)
             check_bijector(this);
+            if nargin < 5
+                u = [];
+            end
             if nargin < 4 || isempty(save_conditions)
                 save_conditions = true;
             end
@@ -188,8 +191,10 @@ classdef Flow
                 conditions = get_conditions(this,conditions);
                 conditions = repelem(conditions,nsamples,1);
             end
-            x = this.latent.sample(size(conditions,1));
-            x = dlarray(x,"BC");
+            if isempty(u)
+                u = this.latent.sample(size(conditions,1));
+            end
+            x = dlarray(u,"BC");
             conditions = dlarray(conditions,"BC");
             for i = numel(this.bijector.Layers):-1:(2+(numel(this.conditional_columns)>0))
                 l = this.bijector.Layers(i);
