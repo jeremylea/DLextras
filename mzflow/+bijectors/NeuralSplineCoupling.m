@@ -17,10 +17,10 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             arguments
                 input_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse}
                 condition_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
-                K (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 16
-                hidden_layers (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 2
-                hidden_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 128
-                transformed_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 2
+                K (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 15
+                hidden_layers (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 1
+                hidden_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 32*(input_dim+condition_dim);
+                transformed_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
                 periodic (1,1) {mustBeNumericOrLogical, mustBeNonsparse} = false
                 options.Name {mustBeText} = ''
                 options.Description {mustBeText} = "Neural Spline Coupling layer"

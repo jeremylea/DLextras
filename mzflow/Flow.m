@@ -17,7 +17,7 @@ classdef Flow
             this.data_columns = data_columns;
             this.input_dim = length(this.data_columns);
             if nargin < 5 || isempty(autoscale_conditions)
-                this.autoscale_conditions = false;
+                this.autoscale_conditions = true;
             else
                 this.autoscale_conditions = ~~autoscale_conditions;
             end
@@ -209,7 +209,7 @@ classdef Flow
         end
 
         function [this, losses, val_losses] = train(this, inputs, validation, epochs, batch_size)
-            if nargin < 5, batch_size = 1024; end
+            if nargin < 5, batch_size = 1000; end
             if nargin < 4, epochs = 100; end
             if nargin < 3, validation = []; end
             if isempty(this.bijector)
