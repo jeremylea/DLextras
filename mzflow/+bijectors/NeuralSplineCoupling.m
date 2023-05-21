@@ -127,7 +127,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             yk = yk(idx);
             wk = W(idx);
             hk = H(idx);
-            sk = wk ./ hk;
+            sk = hk./wk;
             dkp1 = D(idxp1);
             dk = D(idx);
             if inverse
@@ -154,6 +154,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                 if ~this.periodic
                     log_det(out_of_bounds) = 0;
                 end
+                log_det = sum(log_det,1);
             end
             outputs = dlarray(outputs,"CB");
             log_det = stripdims(dlarray(log_det));
