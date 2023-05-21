@@ -45,8 +45,8 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                 this.upper_dim = input_dim - this.transformed_dim;
                 this.lower_dim = this.transformed_dim;
             end
-            this.nnet = DenseReluNetwork(this.upper_dim+condition_dim,...
-                (3*this.K-1+this.periodic)*this.lower_dim, this.hidden_layers, this.hidden_dim);
+            this.nnet = DenseReluNetwork(max(1,this.upper_dim+condition_dim),...
+                (3*this.K+2-this.periodic)*this.lower_dim,this.hidden_layers,this.hidden_dim,this.K);
         end
         function [outputs, log_det] = predict(this, varargin)
             inputs = getinput(this,varargin,"in");
@@ -76,40 +76,47 @@ classdef NeuralSplineCoupling < bijectors.Bijector
         end
         function [outputs, log_det] = spline_params(this, upper, lower, conditions, inverse)
             inputs = [upper; conditions];
+            if isempty(inputs)
+                inputs = dlarray(zeros([1 size(inputs,finddim(inputs,"B"))]),"CB");
+            end
             outputs = predict(this.nnet,inputs);
-            outputs = reshape(outputs,3*this.K-1+this.periodic,this.lower_dim,[]);
+            outputs = reshape(outputs,3*this.K+2-this.periodic,this.lower_dim,[]);
             outputs = permute(outputs,[2 3 1]);
-            W = softmax(outputs(:,:,1:this.K),3);
-            H = softmax(outputs(:,:,this.K+1:2*this.K),3);
-            D = softplus(outputs(:,:,2*this.K+1:end));
+            W = outputs(:,:,1:this.K);
+            H = outputs(:,:,this.K+1:2*this.K);
+            D = outputs(:,:,2*this.K+1:end);
+            W(:,:,end+1) = 0; % pad the last interval to a fixed value
+            H(:,:,end+1) = 0;
+            W = softmax(W,3);
+            H = softmax(H,3);
+            D = softplus(D);
             xk = W;
-            for i = 2:size(W,3)
+            for i = 2:(size(W,3)-1)
                 xk(:,:,i) = xk(:,:,i-1)+xk(:,:,i);
             end
             xk(:,:,end) = 1;
             xk(:,:,end+1) = 0;
             xk = circshift(xk,1,3);
             yk = H;
-            for i = 2:size(H,3)
+            for i = 2:(size(H,3)-1)
                 yk(:,:,i) =  yk(:,:,i-1)+yk(:,:,i);
             end
             yk(:,:,end) = 1;
             yk(:,:,end+1) = 0;
             yk = circshift(yk,1,3);
             if this.periodic
-                dk = [D(:,:,end); D];
+                D = cat(3,D,D(:,:,1));
             else
-                dk = D;
-                dk(:,:,end+1:end+2) = 0; % one is illogical, changed to zero. XXX
-                dk = circshift(dk,1,3);
+                %D(:,:,end+1:end+2) = 0; % XX why one?
+                %D = circshift(D,1,3);
             end
             out_of_bounds = lower < 0 | lower > 1;
             masked = lower;
             masked(out_of_bounds) = mod(extractdata(lower(out_of_bounds)),1.0);
             if inverse
-                idx = sum(yk <= masked,3);
+                idx = extractdata(sum(yk <= masked,3));
             else
-                idx = sum(xk <= masked,3);
+                idx = extractdata(sum(xk <= masked,3));
             end
             idx(idx == size(xk,3)) = size(xk,3)-1;
             I1 = repelem((1:size(idx,1))',1,size(idx,2));
@@ -118,11 +125,11 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             idx = sub2ind(size(xk),I1,I2,idx);
             xk = xk(idx);
             yk = yk(idx);
-            dkp1 = dk(idxp1);
-            dk = dk(idx);
             wk = W(idx);
             hk = H(idx);
             sk = wk ./ hk;
+            dkp1 = D(idxp1);
+            dk = D(idx);
             if inverse
                 a = hk.*(sk-dk) + (masked-yk).*(dkp1+dk-2*sk);
                 b = hk.*dk - (masked-yk).*(dkp1+dk-2*sk);
