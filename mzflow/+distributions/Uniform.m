@@ -18,7 +18,8 @@ classdef Uniform < distributions.LatentDist
         end
 
         function samples = sample(this, nsamples)
-            samples = rand([nsamples, this.input_dim]);
+            border = (1e-4)*10.^min(2,this.input_dim);
+            samples = 0.5*border+(1-border)*rand([nsamples this.input_dim]);
         end
     end
 end
