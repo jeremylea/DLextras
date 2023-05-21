@@ -64,19 +64,11 @@ classdef Flow
             layers = connectLayers(layers,'inputs','shift');
             for i = 1:this.input_dim
                 sn = ['nsp' num2str(i)];
-                an = ['accn' num2str(i)];
                 rn = ['roll' num2str(i)];
-                bn = ['accr' num2str(i)];
                 layers = addLayers(layers,[
                     bijectors.NeuralSplineCoupling(this.input_dim,condition_dim,name=sn)
                     bijectors.Roll(name=rn)
                 ]);
-                layers = addLayers(layers,[
-                    bijectors.Accumulate(name=an)
-                    bijectors.Accumulate(name=bn)
-                ]);
-                layers = connectLayers(layers,[sn '/log_det'],[an '/in2']);
-                layers = connectLayers(layers,[rn '/log_det'],[bn '/in2']);
                 if ~condition_dim
                     if i == 1
                         layers = connectLayers(layers,'shift/out','nsp1');
@@ -90,11 +82,6 @@ classdef Flow
                         layers = connectLayers(layers,['roll' num2str(i-1) '/out'],[sn '/in']);
                     end
                     layers = connectLayers(layers,'conditions',[sn '/cond']);
-                end
-                if i == 1
-                    layers = connectLayers(layers,'shift/log_det',[an '/in1']);
-                else
-                    layers = connectLayers(layers,['accr' num2str(i-1)],[an '/in1']);
                 end
             end
             this = set_bijector(this,dlnetwork(layers));
@@ -283,7 +270,17 @@ function [loss,gradients] = loss_fun(bijector, latent, x, c)
 end
 
 function [bijector, log_probs] = log_probs_internal(bijector, latent, x, conditions)
-    [x,log_det] = predict(bijector,x,conditions);
-    log_probs = latent.log_prob(x)+log_det;
+    if isempty(conditions)
+        [x,state] = predict(bijector,x);
+    else
+        [x,state] = predict(bijector,x,conditions);
+    end
+    bijector.State = state;
+    log_probs = latent.log_prob(x);
+    for i = 1:height(state)
+        if strcmp(state{i,"Parameter"},"log_det")
+            log_probs = log_probs+state{i,"Value"}{1};
+        end
+    end
     log_probs(isnan(log_probs)) = -inf;
 end

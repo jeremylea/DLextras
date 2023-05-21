@@ -13,12 +13,11 @@ classdef Roll < bijectors.Bijector
             this.Name = char(options.Name);
             this.Description = options.Description;
             this.shift = shift;
-            this.NumInputs = 1;
-            this.OutputNames = ["out","log_det"];
         end
         function [outputs, log_det] = predict(this, inputs)
-            outputs = circshift(inputs, this.shift, finddim(inputs,"C"));
-            log_det = dlarray(zeros(1,size(inputs,finddim(inputs,"B"))),"CB");
+            outputs = circshift(inputs,this.shift,finddim(inputs,"C"));
+            log_det = zeros(1,size(inputs,finddim(inputs,"B")));
+            log_det = stripdims(dlarray(log_det));
         end
         function outputs = inverse(this, inputs, ~)
             outputs = circshift(inputs,-this.shift,finddim(inputs,"C"));

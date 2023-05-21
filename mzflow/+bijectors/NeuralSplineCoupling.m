@@ -36,9 +36,8 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             if condition_dim > 0
                 this.InputNames = ["in","cond"];
             else
-                this.NumInputs = 1;
+                this.InputNames = "in";
             end
-            this.OutputNames = ["out","log_det"];
             if this.transformed_dim == 0
                 this.upper_dim = floor(input_dim / 2);
                 this.lower_dim = input_dim - this.upper_dim;
@@ -76,7 +75,6 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             x = args{strcmp(this.InputNames,name)};
         end
         function [outputs, log_det] = spline_params(this, upper, lower, conditions, inverse)
-            % Try with a hand rolled network.
             inputs = [upper; conditions];
             outputs = predict(this.nnet,inputs);
             outputs = reshape(outputs,3*this.K-1+this.periodic,this.lower_dim,[]);
@@ -151,7 +149,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                 end
             end
             outputs = dlarray(outputs,"CB");
-            log_det = dlarray(log_det,"CB");
+            log_det = stripdims(dlarray(log_det));
             outputs = cast(outputs,"like",lower);
         end
     end

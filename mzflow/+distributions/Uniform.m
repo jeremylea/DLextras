@@ -11,10 +11,10 @@ classdef Uniform < distributions.LatentDist
         end
 
         function log_prob = log_prob(this, inputs)
-            mask = all((inputs >= 0) & (inputs <= 1),finddim(inputs,"C"));
-            log_prob = repmat(-inf,size(mask));
-            log_prob(mask) = -this.input_dim*log(1.0);
-            log_prob = dlarray(log_prob,"CB");
+            mask = any(inputs < 0 | inputs > 1,finddim(inputs,"C"));
+            log_prob = repmat(this.input_dim*log(1.0),size(mask));
+            log_prob(mask) = -inf;
+            log_prob = stripdims(dlarray(log_prob));
         end
 
         function samples = sample(this, nsamples)
