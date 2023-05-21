@@ -252,7 +252,7 @@ classdef Flow
                 while hasdata(mbq)
                     iteration = iteration+1;
                     [Xbat,Cbat] = next(mbq);
-                    [~,gradients] = dlfeval(@(x,c) loss_fun(this.bijector, this.latent, x,c),Xbat,Cbat);
+                    [~,gradients] = dlfeval(@loss_fun,this.bijector,this.latent,Xbat,Cbat);
                     [this.bijector,trailingAvg,trailingAvgSq] = adamupdate(this.bijector,gradients,...
                         trailingAvg,trailingAvgSq,iteration);
                 end
