@@ -102,12 +102,12 @@ classdef Flow
             end
         end
 
-        function log_probs = neg_log_prob(this, inputs)
+        function [neg_log_prob,log_probs] = neg_log_prob(this, inputs)
             check_bijector(this);
             X = dlarray(inputs{:,this.data_columns},"BC");
             conditions = dlarray(get_conditions(this,inputs),"BC");
             [~,log_probs] = log_probs_internal(this.bijector,this.latent,X,conditions);
-            log_probs = -mean(log_probs,"all");
+            neg_log_prob = -mean(log_probs,"all");
         end
 
         function pdfs = posterior(this, inputs, column, grid, marg_rules, normalize, batch_size)
