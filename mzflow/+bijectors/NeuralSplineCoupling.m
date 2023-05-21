@@ -163,15 +163,25 @@ classdef NeuralSplineCoupling < bijectors.Bijector
     end
 end
 
-function net = DenseReluNetwork(in_dim, out_dim, hidden_layers, hidden_dim)
-    layers = featureInputLayer(in_dim,"Normalization","none");
+function net = DenseReluNetwork(in_dim, out_dim, hidden_layers, hidden_dim, K)
+    layers = [
+        featureInputLayer(in_dim,"Normalization","none")
+        fullyConnectedLayer(in_dim,"BiasInitializer","narrow-normal")
+        swishLayer
+        %leakyReluLayer(1e-6)
+        %tanhLayer
+    ];
     for i = 1:hidden_layers
-        layers = [ layers; ...
-            fullyConnectedLayer(hidden_dim);
-            leakyReluLayer(0.01);
+        layers = [ layers
+            fullyConnectedLayer(hidden_dim,"BiasInitializer","narrow-normal")
+            swishLayer
+            %leakyReluLayer(1e-6)
+            %tanhLayer
         ]; %#ok<AGROW>
     end
-    layers(end+1) = fullyConnectedLayer(out_dim);
+    bi = ones(out_dim,1);
+    bi(1:2*K) = 0;
+    layers(end+1) = fullyConnectedLayer(out_dim,"Bias",bi);
     net = dlnetwork(layerGraph(layers));
 end
 
