@@ -47,7 +47,14 @@ classdef Flow
             this.bijector = bijector;
         end
 
-        function this = set_default_bijector(this, inputs)
+        function this = set_default_bijector(this, inputs, K, options)
+            arguments
+                this
+                inputs
+                K (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 16
+                options.hidden_layers (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 1
+                options.hidden_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 2*(K+1)*numel(this.data_columns)*max(1,numel(this.conditional_columns))
+            end
             data = inputs{:,this.data_columns};
             mins = floor(min(data,[],1));
             maxs = ceil(max(data,[],1));
@@ -66,7 +73,7 @@ classdef Flow
                 sn = ['nsp' num2str(i)];
                 rn = ['roll' num2str(i)];
                 layers = addLayers(layers,[
-                    bijectors.NeuralSplineCoupling(this.input_dim,condition_dim,name=sn)
+                    bijectors.NeuralSplineCoupling(this.input_dim,numel(this.conditional_columns),K,options.hidden_layers,options.hidden_dim,1,name=sn) % match default shift
                     bijectors.Roll(name=rn)
                 ]);
                 if ~condition_dim
