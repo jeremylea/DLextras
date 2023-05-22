@@ -151,8 +151,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                     outputs(out_of_bounds) = lower(out_of_bounds);
                 end
                 dnum = dkp1.*relx.^2 + 2*sk.*relx.*(1-relx) + dk.*(1-relx).^2;
-                dden = sk + (dkp1+dk-2*sk).*relx.*(1-relx);
-                log_det = 2*log(sk) + log(max(0,dnum)) - 2*log(max(0,dden));
+                log_det = 2*log(sk) + log(max(0,dnum)) - 2*log(max(0,den));
                 if ~this.periodic
                     log_det(out_of_bounds) = 0;
                 end
