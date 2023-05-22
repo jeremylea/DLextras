@@ -6,6 +6,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
         hidden_dim
         transformed_dim
         periodic
+        min_width
         upper_dim
         lower_dim
     end
@@ -13,7 +14,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
         nnet
     end
     methods
-        function this = NeuralSplineCoupling(input_dim, condition_dim, K, hidden_layers, hidden_dim, transformed_dim, periodic, options)
+        function this = NeuralSplineCoupling(input_dim, condition_dim, K, hidden_layers, hidden_dim, transformed_dim, periodic, min_width, options)
             arguments
                 input_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse}
                 condition_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
@@ -22,6 +23,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                 hidden_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 32*(input_dim+condition_dim);
                 transformed_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
                 periodic (1,1) {mustBeNumericOrLogical, mustBeNonsparse} = false
+                min_width (1,1) {mustBeFinite, mustBePositive, mustBeNonsparse} = 1e-2
                 options.Name {mustBeText} = ''
                 options.Description {mustBeText} = strjoin(["Neural Spline Coupling" num2str(input_dim) num2str(condition_dim) num2str(K) num2str(hidden_layers) num2str(hidden_dim) num2str(transformed_dim) num2str(periodic)])
             end
@@ -33,6 +35,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             this.hidden_dim = hidden_dim;
             this.transformed_dim = transformed_dim;
             this.periodic = periodic;
+            this.min_width = min_width;
             if condition_dim > 0
                 this.InputNames = ["in","cond"];
             else
@@ -87,6 +90,8 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             W = softmax(W,3);
             H = softmax(H,3);
             D = softplus(D);
+            W = this.min_width + (1 - this.min_width*size(W,3))*W;
+            H = this.min_width + (1 - this.min_width*size(H,3))*H;
             xk = W;
             for i = 2:(size(W,3)-1)
                 xk(:,:,i) = xk(:,:,i-1)+xk(:,:,i);
