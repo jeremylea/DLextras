@@ -20,7 +20,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                 condition_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
                 K (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 16
                 hidden_layers (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 1
-                hidden_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 32*(input_dim+condition_dim);
+                hidden_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 2*K*input_dim*max(1,condition_dim)
                 transformed_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
                 periodic (1,1) {mustBeNumericOrLogical, mustBeNonsparse} = false
                 min_width (1,1) {mustBeFinite, mustBePositive, mustBeNonsparse} = 1e-2
