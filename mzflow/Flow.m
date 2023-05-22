@@ -193,9 +193,10 @@ classdef Flow
             end
         end
 
-        function [this, losses, val_losses] = train(this, inputs, validation, epochs, batch_size)
-            if nargin < 5, batch_size = 1000; end
-            if nargin < 4, epochs = 100; end
+        function [this, losses, val_losses] = train(this, inputs, validation, epochs, batch_size, debug_cb, varargin)
+            if nargin < 6, debug_cb = []; end
+            if nargin < 5 || isempty(batch_size) || batch_size < 1, batch_size = 1000; end
+            if nargin < 4 || isempty(epochs) || epochs < 1, epochs = 100; end
             if nargin < 3, validation = []; end
             if isempty(this.bijector)
                 this = set_default_bijector(this,inputs);
@@ -215,8 +216,7 @@ classdef Flow
             iteration = 0;
             trailingAvg = [];
             trailingAvgSq = [];
-            presampled = [];
-            initialLearnRate = 0.1;
+            initialLearnRate = 0.1*min(1,batch_size/1000);
             decay = 0.2;
             for epoch = 0:epochs
                 if epoch > 0
@@ -230,20 +230,9 @@ classdef Flow
                             trailingAvg,trailingAvgSq,iteration,learnRate);
                     end
                 end
-                if ~isempty(this.conditional_columns)
-                    test = array2table(unique(inputs{:,"label"}),"VariableNames",{"label"});
-                    [samples,presampled] = this.sample(1000,test,[],presampled);
-                    [~,log_probs] = neg_log_prob(this,samples);
-                    scatter(samples{:,1},samples{:,2},[],-extractdata(log_probs)',"filled");
-                else
-                    [samples,presampled] = this.sample(1000,[],[],presampled);
-                    if width(samples) == 1
-                        histogram(samples{:,1},20,"Normalization","pdf");
-                    else
-                        scatter(samples{:,1},samples{:,2},[],"red","filled");
-                    end
+                if ~isempty(debug_cb)
+                    debug_cb(this,varargin{:});
                 end
-                drawnow;
                 losses(end+1) = neg_log_prob(this,inputs); %#ok<AGROW>
                 if ~isempty(validation)
                     val_losses(end+1) = neg_log_prob(this,validation); %#ok<AGROW>
