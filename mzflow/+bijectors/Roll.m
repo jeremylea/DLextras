@@ -7,7 +7,7 @@ classdef Roll < bijectors.Bijector
             arguments
                 shift (1,1) {mustBeInteger, mustBeNonsparse} = 1
                 options.Name {mustBeText} = ''
-                options.Description {mustBeText} = "Roll (circular shift) layer"
+                options.Description {mustBeText} = strjoin(["Roll (circular shift)" num2str(shift)])
             end
             this.Type = "Roll";
             this.Name = char(options.Name);
@@ -21,9 +21,6 @@ classdef Roll < bijectors.Bijector
         end
         function outputs = inverse(this, inputs, ~)
             outputs = circshift(inputs,-this.shift,finddim(inputs,"C"));
-        end
-        function [inf] = info(this)
-            inf = {"Roll" this.shift};
         end
     end
 end

@@ -23,7 +23,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                 transformed_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
                 periodic (1,1) {mustBeNumericOrLogical, mustBeNonsparse} = false
                 options.Name {mustBeText} = ''
-                options.Description {mustBeText} = "Neural Spline Coupling layer"
+                options.Description {mustBeText} = strjoin(["Neural Spline Coupling" num2str(input_dim) num2str(condition_dim) num2str(K) num2str(hidden_layers) num2str(hidden_dim) num2str(transformed_dim) num2str(periodic)])
             end
             this.Type = "NeuralSplineCoupling";
             this.Name = char(options.Name);
@@ -65,9 +65,6 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             lower = inputs(this.upper_dim+1:end,:);
             lower = spline_params(this,upper,lower,conditions,true);
             outputs = [upper; lower];
-        end
-        function [inf] = info(this)
-            inf = {"NeuralSplineCoupling" this.n_conditions this.K this.hidden_layers this.hidden_dim this.transformed_dim this.periodic};
         end
     end
     methods (Access = private)

@@ -5,6 +5,5 @@ classdef Bijector < nnet.layer.Layer ...
     end
     methods (Abstract)
         inverse(this, inputs, conditions);
-        info(this);
     end
 end

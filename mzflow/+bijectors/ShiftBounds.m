@@ -12,7 +12,7 @@ classdef ShiftBounds < bijectors.Bijector
                 min_val {mustBeReal, mustBeNonsparse}
                 max_val {mustBeReal, mustBeNonsparse}
                 options.Name {mustBeText} = ''
-                options.Description {mustBeText} = "Shift bounds layer"
+                options.Description {mustBeText} = strjoin(["ShiftBounds" num2str(min_val)  num2str(max_val)])
             end
             this.Type = "ShiftBounds";
             this.Name = char(options.Name);
@@ -29,9 +29,6 @@ classdef ShiftBounds < bijectors.Bijector
         end
         function outputs = inverse(this, inputs, ~)
             outputs = inputs .* this.range + this.min_val;
-        end
-        function [inf] = info(this)
-            inf = {"ShiftBounds" this.min_val  this.max_val};
         end
     end
 end
