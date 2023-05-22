@@ -58,9 +58,9 @@ classdef Flow
             data = inputs{:,this.data_columns};
             mins = floor(min(data,[],1));
             maxs = ceil(max(data,[],1));
-            condition_dim = numel(this.conditional_columns) > 0;
+            has_conditions = numel(this.conditional_columns) > 0;
             layers = layerGraph(featureInputLayer(this.input_dim,name='inputs'));
-            if condition_dim
+            if has_conditions
                 layers = addLayers(layers,[
                     featureInputLayer(numel(this.conditional_columns),name='conditions')
                 ]);
@@ -76,7 +76,7 @@ classdef Flow
                     bijectors.NeuralSplineCoupling(this.input_dim,numel(this.conditional_columns),K,options.hidden_layers,options.hidden_dim,1,name=sn) % match default shift
                     bijectors.Roll(name=rn)
                 ]);
-                if ~condition_dim
+                if ~has_conditions
                     if i == 1
                         layers = connectLayers(layers,'shift/out','nsp1');
                     else
