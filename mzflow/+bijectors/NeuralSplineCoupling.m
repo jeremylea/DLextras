@@ -167,20 +167,16 @@ end
 function net = DenseReluNetwork(in_dim, out_dim, hidden_layers, hidden_dim, K)
     layers = [
         featureInputLayer(in_dim,"Normalization","none")
-        fullyConnectedLayer(in_dim,"BiasInitializer","narrow-normal")
+        fullyConnectedLayer(in_dim)
         swishLayer
-        %leakyReluLayer(1e-6)
-        %tanhLayer
     ];
     for i = 1:hidden_layers
         layers = [ layers
             fullyConnectedLayer(hidden_dim,"BiasInitializer","narrow-normal")
             swishLayer
-            %leakyReluLayer(1e-6)
-            %tanhLayer
         ]; %#ok<AGROW>
     end
-    bi = ones(out_dim,1);
+    bi = ones(out_dim,1)+0.01*randn(out_dim,1);
     bi(1:2*K) = 0;
     layers(end+1) = fullyConnectedLayer(out_dim,"Bias",bi);
     net = dlnetwork(layerGraph(layers));
