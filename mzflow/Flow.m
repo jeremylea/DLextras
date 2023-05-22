@@ -117,66 +117,37 @@ classdef Flow
             neg_log_prob = -mean(log_probs,"all");
         end
 
-        function pdfs = posterior(this, inputs, column, grid, marg_rules, normalize, batch_size)
+        function pdfs = posterior(this, inputs, column, grid, normalize, batch_size)
             check_bijector(this)
-            idx = find(strcmp(this.data_columns, column));
-            this.data_columns(idx) = [];
-            nrows = size(inputs, 1);
-            if nargin < 7 || isempty(batch_size)
-                batch_size = size(inputs, 1);
-            end
-            inputs = reset_index(inputs, "drop");
-            pdfs = zeros(nrows, numel(grid));
-            if ~isempty(marg_rules)
-                if isnan(marg_rules.flag)
-                    check_flags = @(data) isnan(data);
-                else
-                    check_flags = @(data) isclose(data, marg_rules.flag);
-                end
-                unflagged_idx = find(~any(check_flags(inputs(:, this.data_columns)), 2));
-                unflagged_pdfs = posterior(this, inputs(unflagged_idx, :), column, grid, [], false, batch_size);
-                pdfs(unflagged_idx, :) = unflagged_pdfs;
-                already_done = unflagged_idx;
-
-                % Iterate over marginalization rules
-                for name = fieldnames(marg_rules)'
-                    rule = marg_rules.(name);
-                    if strcmp(name,"flag")
-                        continue;
-                    end
-                    % Identify flagged rows and apply marginalization
-                    flagged_idx = find(any(check_flags(inputs.(name)), 2));
-                    flagged_idx = setdiff(flagged_idx, already_done);
-                    if isempty(flagged_idx)
-                        continue;
-                    end
-                    marg_grids = arrayfun(rule, inputs(flagged_idx, :), "UniformOutput", false);
-                    marg_grids = cat(2, marg_grids{:});
-                    marg_inputs = repmat(inputs(flagged_idx, :), size(marg_grids, 2), 1);
-                    marg_inputs.(name) = marg_grids(:);
-                    marg_pdfs = posterior(this, marg_inputs, column, grid, marg_rules, false, batch_size);
-                    marg_pdfs = reshape(marg_pdfs, [length(flagged_idx), size(marg_grids, 2), length(grid)]);
-                    marg_pdfs = sum(marg_pdfs, 2);
-                    pdfs(flagged_idx, :) = marg_pdfs;
-                    already_done(end+1) = flagged_idx; %#ok<AGROW>
-                end
+            idx = find(strcmp(this.data_columns,column));
+            this.data_columns(idx) = []; % we're not returning this
+            if isempty(this.data_columns) && isempty(this.conditional_columns)
+                nrows = 1;
             else
-                for batch_idx = 1:batch_size:nrows
-                    batch = inputs(batch_idx:min(batch_idx+batch_size-1, nrows), :);
-                    conditions = get_conditions(this,batch);
-                    batch = batch{:, this.data_columns};
-                    batch = [repmat(batch(:, 1:idx-1), 1, numel(grid));...
-                        repelem(grid, size(batch, 1), 1);...
-                        repmat(batch(:, idx+1:end), 1, numel(grid))];
-                    conditions = repmat(conditions, numel(grid), 1);
-                    log_prob = log_probs_internal(this,batch, conditions);
-                    log_prob = reshape(log_prob, [], numel(grid));
-                    prob = exp(log_prob);
-                    pdfs(batch_idx:min(batch_idx+batch_size-1,nrows), :) = prob;
-                end
+                nrows = size(inputs,1);
             end
-            if nargin < 6 || isempty(normalize) || normalize
-                pdfs = pdfs./trapz(grid, pdfs, 2);
+            grid = grid(:);
+            if nargin < 6 || isempty(batch_size)
+                batch_size = nrows;
+            end
+            pdfs = zeros(nrows,numel(grid));
+            for i = 1:batch_size:nrows
+                batch_idx=i:min(i+batch_size-1,nrows);
+                batch = inputs(batch_idx,:);
+                conditions = get_conditions(this,batch);
+                batch = batch{:,this.data_columns};
+                batch = [repmat(batch(:,1:idx-1),numel(grid),1);...
+                    repelem(grid,size(batch,1),1);...
+                    repmat(batch(:,idx:end),numel(grid),1)];
+                conditions = repmat(conditions,numel(grid),1);
+                batch = dlarray(batch,"BC");
+                conditions = dlarray(conditions,"BC");
+                [~,log_probs] = log_probs_internal(this.bijector,this.latent,batch,conditions);
+                log_probs = reshape(log_probs,[],numel(grid));
+                pdfs(batch_idx,:) = exp(log_probs);
+            end
+            if nargin < 5 || isempty(normalize) || normalize
+                pdfs = pdfs./sum(pdfs,2);
             end
             pdfs(isnan(pdfs)) = 0;
         end
