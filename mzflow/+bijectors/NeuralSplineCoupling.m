@@ -18,7 +18,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             arguments
                 input_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse}
                 condition_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
-                K (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 15
+                K (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 16
                 hidden_layers (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 1
                 hidden_dim (1,1) {mustBeInteger, mustBePositive, mustBeNonsparse} = 32*(input_dim+condition_dim);
                 transformed_dim (1,1) {mustBeInteger, mustBeNonnegative, mustBeNonsparse} = 0
@@ -30,7 +30,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             this.Type = "NeuralSplineCoupling";
             this.Name = char(options.Name);
             this.Description = options.Description;
-            this.K = K;
+            this.K = K-1;
             this.hidden_layers = hidden_layers;
             this.hidden_dim = hidden_dim;
             this.transformed_dim = transformed_dim;
