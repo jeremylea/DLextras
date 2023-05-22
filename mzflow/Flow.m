@@ -156,6 +156,8 @@ classdef Flow
             check_bijector(this);
             if nargin < 5
                 u = [];
+            elseif ~isempty(u)
+                nsamples = size(u,1)/max(1,size(conditions,1));
             end
             if nargin < 4 || isempty(save_conditions)
                 save_conditions = true;
