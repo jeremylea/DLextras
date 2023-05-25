@@ -253,7 +253,7 @@ classdef Flow
                     fprintf("Epoch: %i, Loss: %f\n",epoch,losses(end));
                 end
                 if ~isfinite(losses(end))
-                    disp(["Training stopping after epoch ",num2str(epoch)," because training loss diverged."]);
+                    disp(strjoin(["Training stopping after epoch ",num2str(epoch)," because training loss diverged."]));
                     break;
                 end
             end
