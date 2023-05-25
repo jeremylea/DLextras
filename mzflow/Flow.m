@@ -6,22 +6,24 @@ classdef Flow
         condition_means
         condition_stds
         autoscale_conditions
+        weight_column
         latent
         bijector
     end
     methods
-        function this = Flow(data_columns, conditional_columns, bijector, latent, autoscale_conditions)
-            if isempty(data_columns)
-                error("You must provide data_columns.")
+        function this = Flow(data_columns, conditional_columns, weight_column, bijector, latent, autoscale_conditions)
+            arguments
+                data_columns {mustBeText}
+                conditional_columns {mustBeText} = ""
+                weight_column (1,1) {mustBeText} = ""
+                bijector = []
+                latent = []
+                autoscale_conditions (1,1) {mustBeNumericOrLogical} = true
             end
             this.data_columns = data_columns;
             this.input_dim = length(this.data_columns);
-            if nargin < 5 || isempty(autoscale_conditions)
-                this.autoscale_conditions = true;
-            else
-                this.autoscale_conditions = ~~autoscale_conditions;
-            end
-            if nargin < 4 || isempty(latent)
+            this.autoscale_conditions = ~~autoscale_conditions;
+            if isempty(latent)
                 this.latent = distributions.Uniform(this.input_dim);
             else
                 this.latent = latent;
@@ -29,10 +31,10 @@ classdef Flow
             if this.latent.input_dim ~= length(data_columns)
                 error("The latent distribution has %d dimensions, but data_columns has %d dimensions. They must match!",this.latent.input_dim,length(data_columns));
             end
-            if nargin >= 3 && ~isempty(bijector)
+            if ~isempty(bijector)
                 set_bijector(this,bijector);
             end
-            if nargin < 2 || isempty(conditional_columns)
+            if isempty(conditional_columns) || all(strcmp(conditional_columns,""))
                 this.conditional_columns = [];
                 this.condition_means = [];
                 this.condition_stds = [];
@@ -40,6 +42,11 @@ classdef Flow
                 this.conditional_columns = conditional_columns;
                 this.condition_means = zeros(1,length(this.conditional_columns));
                 this.condition_stds = ones(1,length(this.conditional_columns));
+            end
+            if isempty(weight_column) || strcmp(weight_column,"")
+                this.weight_column = [];
+            else
+                this.weight_column = weight_column;
             end
         end
 
@@ -109,12 +116,30 @@ classdef Flow
             end
         end
 
+        function this = scale_conditions(this,inputs)
+            if ~isempty(this.conditional_columns) && this.autoscale_conditions
+                C = get_conditions(this,inputs);
+                [s,m] = std(C,0,1);
+                this.condition_means = m;
+                this.condition_stds = (s ~= 0).*s+(s == 0);
+            end
+        end
+
+        function weights = get_weights(this, inputs)
+            if isempty(this.weight_column)
+                weights = ones(size(inputs,1),1);
+            else
+                weights = inputs{:,this.weight_column};
+            end
+        end
+
         function [neg_log_prob,log_probs] = neg_log_prob(this, inputs)
             check_bijector(this);
             X = dlarray(inputs{:,this.data_columns},"BC");
             conditions = dlarray(get_conditions(this,inputs),"BC");
+            weights = dlarray(get_weights(this,inputs),"BC");
             [~,log_probs] = log_probs_internal(this.bijector,this.latent,X,conditions);
-            neg_log_prob = -mean(log_probs,"all");
+            [~,neg_log_prob] = std(-log_probs,weights,2);
         end
 
         function pdfs = posterior(this, inputs, column, grid, normalize, batch_size)
@@ -135,6 +160,7 @@ classdef Flow
                 batch_idx=i:min(i+batch_size-1,nrows);
                 batch = inputs(batch_idx,:);
                 conditions = get_conditions(this,batch);
+                %weights = get_weights(this,batch); % XXX Hmmm...
                 batch = batch{:,this.data_columns};
                 batch = [repmat(batch(:,1:idx-1),numel(grid),1);...
                     repelem(grid,size(batch,1),1);...
@@ -168,23 +194,13 @@ classdef Flow
             if isempty(this.conditional_columns)
                 conditions = zeros(nsamples,0);
             else
-                conditions = get_conditions(this,conditions);
+                if isa(conditions,"table")
+                    conditions = get_conditions(this,conditions);
+                end
                 conditions = repelem(conditions,nsamples,1);
             end
-            if isempty(u)
-                u = this.latent.sample(size(conditions,1));
-            end
-            x = dlarray(u,"BC");
-            conditions = dlarray(conditions,"BC");
-            for i = numel(this.bijector.Layers):-1:(2+(numel(this.conditional_columns)>0))
-                l = this.bijector.Layers(i);
-                if ~isa(l,"bijectors.Bijector")
-                    continue;
-                end
-                x = this.bijector.Layers(i).inverse(x,conditions);
-            end
+            [x, u] = this.sample_internal(this.bijector,this.latent,conditions,u);
             x = extractdata(x)';
-            conditions = extractdata(conditions)';
             if isempty(this.conditional_columns) || ~save_conditions
                 x = array2table(x,"VariableNames",this.data_columns);
             else
@@ -201,16 +217,12 @@ classdef Flow
             if isempty(this.bijector)
                 this = set_default_bijector(this,inputs);
             end
-            if ~isempty(this.conditional_columns) && this.autoscale_conditions
-                C = get_conditions(this,inputs);
-                this.condition_means = mean(C);
-                this.condition_stds = arrayfun(@(x) x ~= 0,std(C));
-            end
-            ds = arrayDatastore(inputs(:,[this.data_columns this.conditional_columns]),IterationDimension=1);
-            mbq = minibatchqueue(ds,2,...
+            this = scale_conditions(this,inputs);
+            ds = arrayDatastore(inputs(:,[this.data_columns this.conditional_columns this.weight_column]),IterationDimension=1);
+            mbq = minibatchqueue(ds,3,...
                 MiniBatchSize=batch_size,...
                 MiniBatchFcn=@(X) preprocessData(this,X),...
-                MiniBatchFormat=["BC" "BC"]);
+                MiniBatchFormat=["BC" "BC" "BC"]);
             losses = [];
             val_losses = [];
             iteration = 0;
@@ -224,8 +236,8 @@ classdef Flow
                     shuffle(mbq);
                     while hasdata(mbq)
                         iteration = iteration+1;
-                        [Xbat,Cbat] = next(mbq);
-                        [~,gradients] = dlfeval(@loss_fun,this.bijector,this.latent,Xbat,Cbat);
+                        [Xbat,Cbat,Wbat] = next(mbq);
+                        [~,gradients] = dlfeval(@loss_fun,this.bijector,this.latent,Xbat,Cbat,Wbat);
                         [this.bijector,trailingAvg,trailingAvgSq] = adamupdate(this.bijector,gradients,...
                             trailingAvg,trailingAvgSq,iteration,learnRate);
                     end
@@ -248,17 +260,34 @@ classdef Flow
         end
     end
     methods (Access = private)
-        function [X,C] = preprocessData(this, batch)
+        function [X,C,W] = preprocessData(this, batch)
             batch = cat(1,batch{:});
             X = batch{:,this.data_columns};
             C = get_conditions(this,batch);
+            W = get_weights(this,batch);
+        end
+    end
+    methods (Static)
+        function [x, u] = sample_internal(bijector, latent, conditions, u)
+            if isempty(u)
+                u = sample(latent,size(conditions,1));
+            end
+            x = dlarray(u,"BC");
+            conditions = dlarray(conditions,"BC");
+            for i = numel(bijector.Layers):-1:1
+                l = bijector.Layers(i);
+                if ~isa(l,"bijectors.Bijector")
+                    continue;
+                end
+                x = bijector.Layers(i).inverse(x,conditions);
+            end
         end
     end
 end
 
-function [loss,gradients] = loss_fun(bijector, latent, x, c)
+function [loss,gradients] = loss_fun(bijector, latent, x, c, w)
     [bijector,log_probs] = log_probs_internal(bijector,latent,x,c);
-    loss = -mean(log_probs,"all");
+    [~,loss] = std(-log_probs,w,2); % fake weighted mean
     gradients = dlgradient(loss,bijector.Learnables);
 end
 
