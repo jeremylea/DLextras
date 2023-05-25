@@ -9,6 +9,7 @@ classdef NeuralSplineCoupling < bijectors.Bijector
         min_width
         upper_dim
         lower_dim
+        out_dim
     end
     properties (Learnable)
         nnet
@@ -48,8 +49,9 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                 this.upper_dim = input_dim - this.transformed_dim;
                 this.lower_dim = this.transformed_dim;
             end
+            this.out_dim = 3*this.K+2-this.periodic;
             this.nnet = DenseReluNetwork(max(1,this.upper_dim+condition_dim),...
-                (3*this.K+2-this.periodic)*this.lower_dim,this.hidden_layers,this.hidden_dim,this.K);
+                this.out_dim*this.lower_dim,this.hidden_layers,this.hidden_dim,this.K);
         end
         function [outputs, log_det] = predict(this, varargin)
             inputs = getinput(this,varargin,"in");
@@ -79,8 +81,8 @@ classdef NeuralSplineCoupling < bijectors.Bijector
             if isempty(inputs)
                 inputs = dlarray(zeros([1 size(inputs,finddim(inputs,"B"))]),"CB");
             end
-            outputs = predict(this.nnet,inputs);
-            outputs = reshape(outputs,3*this.K+2-this.periodic,this.lower_dim,[]);
+            outputs = cast(predict(this.nnet,inputs),"double");
+            outputs = reshape(outputs,this.out_dim,this.lower_dim,[]);
             outputs = permute(outputs,[2 3 1]);
             W = outputs(:,:,1:this.K);
             H = outputs(:,:,this.K+1:2*this.K);
