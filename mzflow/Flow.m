@@ -240,6 +240,9 @@ classdef Flow
                         [~,gradients] = dlfeval(@loss_fun,this.bijector,this.latent,Xbat,Cbat,Wbat);
                         [this.bijector,trailingAvg,trailingAvgSq] = adamupdate(this.bijector,gradients,...
                             trailingAvg,trailingAvgSq,iteration,learnRate);
+                        if ~isempty(debug_cb)
+                            debug_cb(this,varargin{:});
+                        end
                     end
                 end
                 if ~isempty(debug_cb)
