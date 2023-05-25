@@ -114,6 +114,9 @@ classdef NeuralSplineCoupling < bijectors.Bijector
                 %D(:,:,end+1:end+2) = 0; % XX why one?
                 %D = circshift(D,1,3);
             end
+            S = H./W;
+            S(:,:,end+1) = S(:,:,end);
+            D = D.*S;
             out_of_bounds = lower < 0 | lower > 1;
             masked = lower;
             masked(out_of_bounds) = mod(extractdata(lower(out_of_bounds)),1.0);
