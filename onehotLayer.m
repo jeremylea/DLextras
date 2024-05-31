@@ -1,4 +1,6 @@
-classdef onehotLayer < nnet.layer.Layer
+classdef onehotLayer < nnet.layer.Layer ...
+        & nnet.layer.Acceleratable ...
+        & nnet.layer.Formattable
     properties
         NumActions
         NumEncoded
@@ -32,15 +34,37 @@ classdef onehotLayer < nnet.layer.Layer
         
         function Z = predict(this, X)
             i = 0;
-            Z = zeros(this.NumEncoded,size(X,2));
+            d = finddim(X,"C");
+            sz = size(X);
+            sz(d) = this.NumEncoded;
+            Z = dlarray(zeros(sz),dims(X));
+            if d ~= 1
+                p = 1:numel(sz);
+                p(p == d) = [];
+                p = [d p];
+                t = dims(X);
+                t = ["C" strrep(t,"C","")];
+                X = permute(stripdims(X),p);
+                Z = permute(stripdims(Z),p);
+            end
+            S.subs = repmat({':'},1,ndims(X));
+            S.type = '()';
+            R = S;
             for j = 1:length(this.NumActions)
                 if this.NumActions(j) == 1
-                    Z(i+1,:) = X(j,:);
+                    R.subs{1} = j;
+                    S.subs{1} = i+1;
+                    Z = subsasgn(Z,S,subsref(X,R));
                     i = i+1;
                 else
-                    Z(i+1:this.NumActions(j),:) = onehotencode(X(j,:),1,'ClassNames',1:this.NumActions(j));
+                    R.subs{1} = j;
+                    S.subs{1} = i+(1:this.NumActions(j));
+                    Z = subsasgn(Z,S,onehotencode(subsref(X,R),1,'ClassNames',1:this.NumActions(j)));
                     i = i+this.NumActions(j);
                 end
+            end
+            if d ~= 1
+                Z = dllarray(Z,t);
             end
             Z = cast(Z,'like',X);
         end
