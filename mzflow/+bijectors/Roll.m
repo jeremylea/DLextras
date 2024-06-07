@@ -14,10 +14,12 @@ classdef Roll < bijectors.Bijector
             this.Description = options.Description;
             this.shift = shift;
         end
-        function [outputs, log_det] = predict(this, inputs)
+        function [outputs, log_det, penalty] = predict(this, inputs)
             outputs = circshift(inputs,this.shift,finddim(inputs,"C"));
             log_det = zeros(1,size(inputs,finddim(inputs,"B")));
             log_det = stripdims(dlarray(log_det));
+            penalty = zeros(1,size(inputs,finddim(inputs,"B")));
+            penalty = stripdims(dlarray(penalty));
         end
         function outputs = inverse(this, inputs, ~)
             outputs = circshift(inputs,-this.shift,finddim(inputs,"C"));

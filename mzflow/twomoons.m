@@ -1,4 +1,4 @@
-function [X,label] = twomoons(n) % Generate two moons, with n points in each moon.
+function [X,label,Z] = twomoons(n) % Generate two moons, with n points in each moon.
 
 % Specify the radius and relevant angles for the two moons.
 noise = 0.05;
@@ -24,6 +24,8 @@ idx = randperm(numel(label));
 X = X(idx, :);
 label = label(idx);
 
-X = X + noise * randn(size(X));
+e = randn(size(X));
+X = X + noise * e;
+Z = mvnpdf(e);
 
 end
